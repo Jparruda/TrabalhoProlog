@@ -1,7 +1,5 @@
 % Configurações
-qtd_produtos(3).
-
-min_produtos(3).
+qtd_produtos(5).
 max_produtos(12).
 
 :- dynamic qtd_corredores/1.
@@ -106,6 +104,8 @@ encontrar_corredores(Pedido, Res) :-
           Corredores),
     sort_tamanho(Corredores, Res),
     !.
+encontrar_corredores(_, _) :-
+    writeln('Nao ha produtos o suficiente no estoque'), fail.
 
 % Helper predicate to generate all SubListas of a list
 sublista([], []) :- !.
@@ -133,14 +133,13 @@ pos_inicial :- !.
 
 calc_dist(Corredor, Dist) :- pos(Pos), Dist is abs(Pos - Corredor).
 
-min_dist(SubLista, MinDist) :-
-    findall(Dist, (member(Corredor, SubLista), calc_dist(Corredor, Dist)), Distancias),
-    min_list(Distancias, MinDist).
+sum_dist([], 0) :- !.
+sum_dist([Corredor | T], Res) :- sum_dist(T, Sum), calc_dist(Corredor, Dist), Res is Sum + Dist.
 
 calc_valor_sublista(SubLista, Valor) :- 
     length(SubLista, Tam),
-    min_dist(SubLista, MinDist), 
-    Valor is 1000 / (Tam + MinDist).
+    sum_list(SubLista, SumDist),
+    Valor is 1000 / (SumDist + Tam).
 
 calc_valor([], []) :- !.
 calc_valor([SubLista | T], [Valor-SubLista | R]) :-
@@ -156,11 +155,33 @@ max_valor([_-_ | T], Max) :-
     max_valor(T, Valor2-SubLista2),
     Max = Valor2-SubLista2, !.
 
+:- dynamic mochila/1.
+
+add_valores([]) :- !.
+add_valores([H | T]) :- H = 0, add_valores(T).
+
+mochila_inicial :- \+ mochila(_), qtd_produtos(Tam), length(L, Tam), add_valores(L), assertz(mochila(L)).
+mochila_inicial :- !.
+
+att_lista(_, _, [], N, []) :- qtd_produtos(N), !.
+att_lista(Produto, Qtd, [H | T], I, [ValorAtt | Res]) :- att_lista(Produto, Qtd, T, Ant, Res), I is Ant - 1, Ant =:= Produto, ValorAtt is Qtd + H, !.
+att_lista(Produto, Qtd, [H | T], I, [H | Res]) :- att_lista(Produto, Qtd, T, Ant, Res), I is Ant - 1, !.
+
+att_mochila(Produto, Qtd) :- 
+    mochila(Produtos), 
+    sum_list(Produtos, QtdProdutos), 
+    max_produtos(MaxProdutos), 
+    (QtdProdutos + Qtd) =< MaxProdutos, 
+    att_lista(Produto, Qtd, Produtos, _, AttProdutos),
+    retract(mochila(Produtos)),
+    assertz(mochila(AttProdutos)), !.
+
 dec_itens([], [], [], [], _) :- !.
 dec_itens([Precisa | T1], [Tem | T2], [PedidoAtt | T3], [CorredorAtt | T4], NumProduto) :-
     CorredorAtt is max(0, Precisa - Tem),
     Qtd is min(Precisa, Tem),
     PedidoAtt is Precisa - Qtd,
+    att_mochila(NumProduto, Qtd),
     format('Robo pegou ~d item(s) do produto ~d~n', [Qtd, NumProduto]),
     Prox is NumProduto + 1,
     dec_itens(T1, T2, T3, T4, Prox).
@@ -189,6 +210,7 @@ fazer_pedido(Pedido) :-
     qtd_produtos(Qtd), 
     length(Pedido, Qtd), 
     pos_inicial, 
+    mochila_inicial,
     writeln('Pedido Recebido! Procurando rota...'),
     encontrar_corredores(Pedido, Candidatos),
     writeln('Possiveis rotas encontradas!'),
