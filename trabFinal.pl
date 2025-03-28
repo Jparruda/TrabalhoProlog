@@ -54,11 +54,6 @@ remove_corredor(NumCorredor) :- retract(corredor(NumCorredor, _)),
                                     format('corredor ~d removido da base de conhecimento~n', [NumCorredor]), !.
 remove_corredor(_) :- writeln('o corredor não pode ser removido da base de conhecimento'), fail.
 
-add_proutos([], [], []) :- !.
-add_produtos([QtdIni | T1], [QtdNovo | T2], [Qtd | T3]) :- 
-    add_produtos(T1, T2, T3),
-    Qtd is QtdIni + QtdNovo.
-
 % Checa se a lista de corredores pode satisfazer o pedido
 checa_satisfacao(Pedido, Corredores) :-
     maplist(produtos_corredor, Corredores, ListaProdutos), % Cria uma lista com todos as listas de produtos de todos os corredores
