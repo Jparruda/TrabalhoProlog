@@ -284,5 +284,5 @@ recarregar_corredor(NumCorredor, ProdutosNovos) :-
     soma_listas(Produtos, ProdutosNovos, ProdutosAtt),
     retract(corredor(NumCorredor, Produtos)),
     assertz(corredor(NumCorredor, ProdutosAtt)),
-    format('Produtos adicionados no corredor ~d~n', [NumCorredor])
+    format('Produtos adicionados no corredor ~d~n', [NumCorredor]),
     writeln('Recarregamento concluído!').
