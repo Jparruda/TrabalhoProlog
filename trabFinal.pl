@@ -1,5 +1,5 @@
 % Salva a quantidade de produtos diferentes há no estoque
-qtd_produtos(5).
+qtd_produtos(3).
 
 % guarda a quantidade de corredores presentes que guardam os itens
 :- dynamic qtd_corredores/1.
@@ -54,6 +54,10 @@ remove_corredor(NumCorredor) :- retract(corredor(NumCorredor, _)),
                                     format('corredor ~d removido da base de conhecimento~n', [NumCorredor]), !.
 remove_corredor(_) :- writeln('o corredor não pode ser removido da base de conhecimento'), fail.
 
+add_proutos([], [], []) :- !.
+add_produtos([QtdIni | T1], [QtdNovo | T2], [Qtd | T3]) :- 
+    add_produtos(T1, T2, T3),
+    Qtd is QtdIni + QtdNovo.
 
 % Checa se a lista de corredores pode satisfazer o pedido
 checa_satisfacao(Pedido, Corredores) :-
@@ -77,6 +81,11 @@ soma_listas([], [], []) :- !.
 soma_listas([X|Xs], [Y|Ys], [Z|Zs]) :-
     Z is X + Y,
     soma_listas(Xs, Ys, Zs).
+
+subtrair_listas([], [], []) :- !.
+subtrair_listas([X|Xs], [Y|Ys], [Z|Zs]) :-
+    Z is X - Y,
+    subtrair_listas(Xs, Ys, Zs).
 
 % Checa se a soma dos produtos satisfaz o pedido
 satisfaz_pedido([], _) :- !.
@@ -151,7 +160,6 @@ max_valor([_-_ | T], Max) :-
     Max = Valor2-SubLista2, !.
 
 % Salva a quantidade de produtos que o robô pode guardar de uma vez
-% max_produtos(12).
 
 % indica os itens que o robô tem guardado
 :- dynamic mochila/1.
@@ -189,12 +197,21 @@ att_lista(Produto, Qtd, [H | T], I, [H | Res]) :-
 % atualiza na base de conhecimento os produtos da mochila
 att_mochila(Produto, Qtd) :- 
     mochila(Produtos), 
-    sum_list(Produtos, QtdProdutos), 
-    % max_produtos(MaxProdutos), 
-    % (QtdProdutos + Qtd) =< MaxProdutos, 
     att_lista(Produto, Qtd, Produtos, _, AttProdutos),
     retract(mochila(Produtos)),
     assertz(mochila(AttProdutos)), !.
+
+att_mochila(ProdutosNovos) :-
+    mochila(Produtos),
+    soma_listas(Produtos, ProdutosNovos, ProdutosTotal),
+    retract(mochila(Produtos)),
+    assertz(mochila(ProdutosTotal)).
+
+descarregar_mochila(ProdutosRetirados) :-
+    mochila(Produtos),
+    subtrair_listas(Produtos, ProdutosRetirados, ProdutosTotal),
+    retract(mochila(Produtos)),
+    assertz(mochila(ProdutosTotal)).
 
 % Esvazia a mochila
 descarregar_mochila :- mochila(P), retract(mochila(P)), mochila_inicial.
@@ -256,3 +273,21 @@ fazer_pedido(Pedido) :-
 entregar_pedido :- 
     descarregar_mochila,
     mover(0).
+
+recarregar_corredor(NumCorredor, _) :- 
+    mochila_inicial,
+    format('Recarregamento de produtos do corredor ~d recebido!~n', [NumCorredor]),
+    pos(Pos), 
+    Pos > 0, 
+    mover(0).
+recarregar_corredor(NumCorredor, ProdutosNovos) :- 
+    att_mochila(ProdutosNovos),
+    writeln('Produtos coletados!'),
+    corredor(NumCorredor, Produtos),
+    mover(NumCorredor),
+    descarregar_mochila(ProdutosNovos),
+    soma_listas(Produtos, ProdutosNovos, ProdutosAtt),
+    retract(corredor(NumCorredor, Produtos)),
+    assertz(corredor(NumCorredor, ProdutosAtt)),
+    format('Produtos adicionados no corredor ~d~n', [NumCorredor])
+    writeln('Recarregamento concluído!').
